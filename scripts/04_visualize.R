@@ -1,6 +1,6 @@
 # =============================================================================
 # Script 04: Visualization
-# Project: Testing the Geopolitical Roche Limit
+# Project: Distance and Geographic Size in Latin America
 # Description: Creates figures for the analysis
 # =============================================================================
 
@@ -71,7 +71,7 @@ ggsave("output/figures/distance_geographic_size.png",
 # 3. Supplementary Figure: Partial Regression Plot
 # =============================================================================
 
-cat("Creating partial regression plot (controlling for GDP)...\n")
+cat("Creating partial regression plot (controlling for GDP and population)...\n")
 
 # Run full model
 model_full <- lm(
@@ -217,7 +217,7 @@ p_coef <- ggplot(model_results, aes(x = estimate, y = reorder(variable, estimate
   ) +
   labs(
     title = "Regression Coefficients with 95% Confidence Intervals",
-    subtitle = "Predictors of state capacity in Latin America",
+    subtitle = "Predictors of log(land area) in Latin America",
     x = "Coefficient Estimate",
     y = NULL,
     caption = "Note: Colored points indicate statistically significant effects (p < 0.05)"

@@ -1,12 +1,12 @@
-# Testing the Geopolitical Roche Limit
+# Distance and Geographic Size in Latin America
 
 ## Project Overview
 
-This research project tests a novel theoretical framework for understanding state fragmentation in great power spheres of influence. Drawing an analogy from astrophysics, we propose that great powers exert "tidal forces" on nearby states that prevent full political consolidation—similar to how Saturn's gravity prevents its rings from coalescing into moons.
+This research project tests a simple geographic hypothesis: Does distance from the United States correlate with the geographic size of Latin American countries?
 
-**Core Research Question:** Does proximity to the United States predict lower state capacity in Latin American countries, even after controlling for economic development?
+**Core Research Question:** Is there a positive correlation between distance from the United States and the land area of Latin American countries?
 
-**Hypothesis (H3):** States closer to the U.S. will have lower state capacity than states farther away, holding other factors constant.
+**Hypothesis:** Countries farther from the U.S. will have larger geographic sizes (land areas) than countries closer to the U.S.
 
 ---
 
@@ -26,7 +26,6 @@ Ensure you have R (≥ 4.0) and RStudio installed.
 install.packages(c(
   "tidyverse",    # Data manipulation and visualization
   "WDI",          # World Bank data
-  "vdemdata",     # V-Dem data (optional but recommended)
   "geosphere",    # Distance calculations
   "ggrepel",      # Label points on plots
   "countrycode",  # Standardize country codes
@@ -37,18 +36,12 @@ install.packages(c(
 ))
 ```
 
-**Note on vdemdata:** If you don't have the `vdemdata` package, the script will generate placeholder data. For real analysis, install it with:
-
-```r
-install.packages("vdemdata")
-```
-
 ### Running the Analysis
 
 Execute scripts in order:
 
 ```r
-# 1. Collect data from V-Dem and World Bank
+# 1. Collect data from World Bank
 source("scripts/01_collect_data.R")
 
 # 2. Clean and merge datasets
@@ -86,13 +79,10 @@ rmarkdown::render("roche_limit_report.Rmd")
 │   ├── raw/                       # Downloaded/source data
 │   │   ├── capital_distances.csv
 │   │   ├── independence_years.csv
-│   │   ├── vdem_data.csv
-│   │   ├── wdi_data.csv
-│   │   └── wgi_data.csv
+│   │   └── wdi_data.csv
 │   └── processed/                 # Cleaned, merged data
 │       ├── merged_data_all.csv
-│       ├── analysis_data.csv
-│       └── analysis_data_wgi.csv
+│       └── analysis_data.csv
 ├── scripts/
 │   ├── 01_collect_data.R          # Download and prepare raw data
 │   ├── 02_clean_merge.R           # Merge and clean datasets
@@ -100,7 +90,7 @@ rmarkdown::render("roche_limit_report.Rmd")
 │   └── 04_visualize.R             # Create figures
 └── output/
     ├── figures/                   # Generated plots
-    │   ├── distance_state_capacity.png
+    │   ├── distance_geographic_size.png
     │   ├── partial_regression_plot.png
     │   ├── geographic_map.png
     │   ├── variable_distributions.png
@@ -128,18 +118,16 @@ rmarkdown::render("roche_limit_report.Rmd")
 
 | Variable | Measure | Source |
 |----------|---------|--------|
-| **State Capacity** (DV) | V-Dem Executive Capacity Index (`v2x_execap`) | V-Dem v13 |
+| **Land Area** (DV) | Total land area in square kilometers | World Bank WDI |
 | **Distance** (Key IV) | Great-circle distance from capital to Washington DC (km) | Calculated |
 | **GDP per capita** (Control) | Log of constant 2015 USD | World Bank WDI |
 | **Population** (Control) | Log of total population | World Bank WDI |
 | **Years Independent** (Control) | Years since independence | Manual coding |
 
-**Alternative outcome:** World Bank Government Effectiveness index (robustness check)
-
 ### Model Specification
 
 ```
-State Capacity = β₀ + β₁(Distance) + β₂(log GDP pc) + β₃(log Pop) + β₄(Years Indep) + ε
+Log(Land Area) = β₀ + β₁(Distance) + β₂(log GDP pc) + β₃(log Pop) + β₄(Years Indep) + ε
 ```
 
 **Test:** β₁ > 0 and statistically significant
@@ -150,37 +138,27 @@ State Capacity = β₀ + β₁(Distance) + β₂(log GDP pc) + β₃(log Pop) + 
 
 Run the analysis to discover:
 
-1. Whether distance from the U.S. predicts state capacity
+1. Whether distance from the U.S. predicts geographic size
 2. Whether this relationship holds after controlling for economic development
 3. Robustness of the finding across alternative specifications
 
 **Expected Results (if hypothesis is supported):**
 
 - Positive and significant coefficient on distance
-- Effect size: ~0.X increase in state capacity per 1,000 km
+- Effect size: increase in land area per 1,000 km of distance
 - Relationship visible in scatterplot and partial regression plot
 
 ---
 
 ## Data Sources
 
-### V-Dem (Varieties of Democracy)
-
-- **Variable:** `v2x_execap` (Executive Capacity Index)
-- **Time period:** 2018-2022 (averaged)
-- **Website:** https://v-dem.net
-- **Citation:** Coppedge et al. (2023). "V-Dem Dataset v13"
-
 ### World Bank
 
 **World Development Indicators (WDI):**
+- Land area: `AG.LND.TOTL.K2`
 - GDP per capita: `NY.GDP.PCAP.KD`
 - Population: `SP.POP.TOTL`
 - **Website:** https://data.worldbank.org
-
-**Worldwide Governance Indicators (WGI):**
-- Government Effectiveness: `GE.EST`
-- **Website:** https://info.worldbank.org/governance/wgi
 
 ### Geographic Data
 
@@ -195,10 +173,9 @@ Run the analysis to discover:
 
 1. Defines Latin American sample (22 countries)
 2. Codes capital coordinates and calculates distances to Washington DC
-3. Downloads World Bank indicators (GDP, population, governance)
-4. Loads V-Dem state capacity data
-5. Codes independence years
-6. Saves raw datasets
+3. Downloads World Bank indicators (land area, GDP, population)
+4. Codes independence years
+5. Saves raw datasets
 
 ### Data Preparation (Script 02)
 
@@ -214,12 +191,11 @@ Run the analysis to discover:
 3. **Diagnostics:** VIF for multicollinearity, residual plots
 4. **Robustness checks:**
    - Bivariate model (distance only)
-   - Alternative outcome (WGI Government Effectiveness)
    - Non-linear specification (distance squared)
 
 ### Visualization (Script 04)
 
-1. Main scatterplot: Distance vs. state capacity with regression line
+1. Main scatterplot: Distance vs. geographic size with regression line
 2. Partial regression plot: Relationship controlling for covariates
 3. Geographic map: Spatial distribution
 4. Coefficient plot: Regression results with confidence intervals
@@ -228,7 +204,7 @@ Run the analysis to discover:
 ### Report (R Markdown)
 
 Comprehensive HTML report including:
-- Introduction and theory
+- Introduction and research question
 - Research design
 - Descriptive statistics
 - Regression results
@@ -243,9 +219,8 @@ Comprehensive HTML report including:
 
 ✓ **Hypothesis SUPPORTED**
 
-- Countries farther from the U.S. have higher state capacity
-- Consistent with the "geopolitical Roche limit" framework
-- Great power proximity may create fragmentation pressures
+- Countries farther from the U.S. have larger land areas
+- Geographic distance correlates with country size
 
 ### If Distance Coefficient is Positive but Not Significant
 
@@ -258,9 +233,8 @@ Comprehensive HTML report including:
 
 ✗ **Hypothesis NOT SUPPORTED**
 
-- No evidence for the Roche limit mechanism
-- State capacity patterns explained by development alone
-- Framework needs revision
+- No evidence for the distance-size relationship
+- Geographic size patterns explained by other factors
 
 ---
 
@@ -271,39 +245,37 @@ Comprehensive HTML report including:
    - Cannot include many controls simultaneously
    - Individual cases have large influence
 
-2. **Endogeneity**
-   - Reverse causality: U.S. may target weak states for intervention
-   - Omitted variables: Colonial history, geography, ethnic fractionalization
+2. **Correlation vs. Causation**
    - Correlational, not causal
+   - Cannot establish directional relationship
+   - Omitted variables may drive the pattern
 
 3. **Measurement**
-   - "State capacity" is contested; V-Dem is one operationalization
-   - Distance is crude proxy for geopolitical influence
+   - Distance is simple great-circle metric
+   - Land area excludes territorial waters
    - Cross-sectional design misses temporal dynamics
 
 4. **Scope**
-   - Limited to Latin America in contemporary era
-   - May not generalize to other regions or periods
+   - Limited to Latin America
+   - May not generalize to other regions
 
 ---
 
 ## Extensions (Future Work)
 
-1. **Causal Identification:** Instrumental variables, natural experiments
-2. **Mechanisms:** Test whether U.S. interventions mediate the relationship
-3. **Panel Analysis:** Examine how relationship changes over time
-4. **Comparative Analysis:** Test in other great power spheres (Soviet, Chinese)
-5. **Interaction Effects:** Operationalize "density" of great power activity
+1. **Regional Comparison:** Test in other world regions
+2. **Historical Analysis:** Examine how relationships change over time
+3. **Additional Controls:** Colonial history, terrain, climate zones
+4. **Alternative Measures:** Include territorial waters, EEZ boundaries
 
 ---
 
 ## Citation
 
-If you use this code or framework, please cite:
+If you use this code or analysis, please cite:
 
 ```
-[Author Name]. (2025). Testing the Geopolitical Roche Limit:
-Distance and State Capacity in Latin America.
+[Author Name]. (2025). Distance and Geographic Size in Latin America.
 GitHub repository: [URL]
 ```
 
@@ -323,7 +295,6 @@ For questions or suggestions, please open an issue on GitHub or contact [your co
 
 ## Acknowledgments
 
-- V-Dem Institute for state capacity data
 - World Bank for development indicators
 - R community for excellent open-source tools
 

@@ -1,6 +1,6 @@
 # =============================================================================
 # Script 02: Data Cleaning and Merging
-# Project: Testing the Geopolitical Roche Limit
+# Project: Distance and Geographic Size in Latin America
 # Description: Merges all datasets and prepares analysis-ready data
 # =============================================================================
 
@@ -16,8 +16,6 @@ cat("Starting data cleaning and merging...\n")
 capital_distances <- read_csv("data/raw/capital_distances.csv", show_col_types = FALSE)
 independence_years <- read_csv("data/raw/independence_years.csv", show_col_types = FALSE)
 wdi_data <- read_csv("data/raw/wdi_data.csv", show_col_types = FALSE)
-vdem_data <- read_csv("data/raw/vdem_data.csv", show_col_types = FALSE)
-wgi_data <- read_csv("data/raw/wgi_data.csv", show_col_types = FALSE)
 
 cat("Loaded all raw data files\n")
 
@@ -31,11 +29,7 @@ analysis_data <- capital_distances %>%
   # Add independence years
   left_join(independence_years, by = "country") %>%
   # Add World Bank data
-  left_join(wdi_data, by = "country") %>%
-  # Add V-Dem state capacity
-  left_join(vdem_data, by = "country") %>%
-  # Add WGI government effectiveness
-  left_join(wgi_data, by = "country")
+  left_join(wdi_data, by = "country")
 
 cat("Merged", nrow(analysis_data), "observations\n")
 
@@ -79,21 +73,14 @@ if (nrow(missing_summary) > 0) {
 
 # Key variables for main analysis
 key_vars <- c("country", "country_name", "capital", "lat", "lon", "distance_km", "distance_1000km",
-              "state_capacity", "gdp_pc", "log_gdp_pc", "population", "log_population",
-              "land_area_km2", "log_land_area", "years_independent", "gov_effectiveness")
+              "land_area_km2", "log_land_area", "gdp_pc", "log_gdp_pc",
+              "population", "log_population", "years_independent")
 
 analysis_data_complete <- analysis_data %>%
   select(all_of(key_vars)) %>%
-  drop_na(state_capacity, gdp_pc, population, years_independent)
+  drop_na(land_area_km2, gdp_pc, population, years_independent)
 
 cat("\nComplete cases for main analysis:", nrow(analysis_data_complete), "countries\n")
-
-# Also create a version for robustness check with WGI
-analysis_data_wgi <- analysis_data %>%
-  select(all_of(key_vars)) %>%
-  drop_na(gov_effectiveness, gdp_pc, population, years_independent)
-
-cat("Complete cases for WGI robustness check:", nrow(analysis_data_wgi), "countries\n")
 
 # =============================================================================
 # 6. Save processed data
@@ -101,13 +88,11 @@ cat("Complete cases for WGI robustness check:", nrow(analysis_data_wgi), "countr
 
 write_csv(analysis_data, "data/processed/merged_data_all.csv")
 write_csv(analysis_data_complete, "data/processed/analysis_data.csv")
-write_csv(analysis_data_wgi, "data/processed/analysis_data_wgi.csv")
 
 cat("\n=== Data cleaning complete ===\n")
 cat("Processed data saved to data/processed/\n")
 cat("- merged_data_all.csv:", nrow(analysis_data), "observations\n")
 cat("- analysis_data.csv:", nrow(analysis_data_complete), "observations\n")
-cat("- analysis_data_wgi.csv:", nrow(analysis_data_wgi), "observations\n")
 
 # =============================================================================
 # 7. Preview the final dataset
@@ -116,7 +101,7 @@ cat("- analysis_data_wgi.csv:", nrow(analysis_data_wgi), "observations\n")
 cat("\n=== Preview of analysis dataset ===\n")
 print(
   analysis_data_complete %>%
-    select(country_name, distance_km, state_capacity, gdp_pc, years_independent) %>%
+    select(country_name, distance_km, land_area_km2, gdp_pc, years_independent) %>%
     arrange(distance_km) %>%
     head(10)
 )

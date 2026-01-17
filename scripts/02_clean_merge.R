@@ -48,6 +48,7 @@ analysis_data <- analysis_data %>%
     # Log transformations for skewed variables
     log_gdp_pc = log(gdp_pc),
     log_population = log(population),
+    log_land_area = log(land_area_km2),
 
     # Distance in thousands of km for easier interpretation
     distance_1000km = distance_km / 1000,
@@ -77,9 +78,9 @@ if (nrow(missing_summary) > 0) {
 # =============================================================================
 
 # Key variables for main analysis
-key_vars <- c("country", "country_name", "capital", "distance_km", "distance_1000km",
+key_vars <- c("country", "country_name", "capital", "lat", "lon", "distance_km", "distance_1000km",
               "state_capacity", "gdp_pc", "log_gdp_pc", "population", "log_population",
-              "years_independent", "gov_effectiveness")
+              "land_area_km2", "log_land_area", "years_independent", "gov_effectiveness")
 
 analysis_data_complete <- analysis_data %>%
   select(all_of(key_vars)) %>%

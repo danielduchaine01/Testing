@@ -122,12 +122,13 @@ cat("Coded independence years for", nrow(independence_years), "countries\n")
 
 cat("Downloading World Bank data...\n")
 
-# Get GDP per capita and population (most recent 5 years for averaging)
+# Get GDP per capita, population, and land area (most recent 5 years for averaging)
 wdi_data <- WDI(
   country = latin_america_iso3,
   indicator = c(
     "NY.GDP.PCAP.KD",  # GDP per capita (constant 2015 USD)
-    "SP.POP.TOTL"      # Population
+    "SP.POP.TOTL",     # Population
+    "AG.LND.TOTL.K2"   # Land area (sq. km)
   ),
   start = 2018,
   end = 2022,
@@ -141,6 +142,7 @@ wdi_avg <- wdi_data %>%
   summarize(
     gdp_pc = mean(NY.GDP.PCAP.KD, na.rm = TRUE),
     population = mean(SP.POP.TOTL, na.rm = TRUE),
+    land_area_km2 = mean(AG.LND.TOTL.K2, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   rename(country = iso3c)

@@ -1,0 +1,27 @@
+# R files
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Output files (can be regenerated)
+output/figures/*.png
+output/figures/*.pdf
+output/tables/*.csv
+*.html
+
+# Data files (can be regenerated)
+data/raw/*.csv
+data/processed/*.csv
+
+# Keep directory structure
+!.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*~
+*.swp
+*.swo

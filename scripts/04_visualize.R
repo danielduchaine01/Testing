@@ -19,13 +19,13 @@ analysis_data <- read_csv("data/processed/analysis_data.csv", show_col_types = F
 cat("Loaded data:", nrow(analysis_data), "observations\n")
 
 # =============================================================================
-# 2. Main Figure: Distance vs. State Capacity
+# 2. Main Figure: Distance vs. Geographic Size
 # =============================================================================
 
-cat("\nCreating main scatterplot: Distance vs. State Capacity...\n")
+cat("\nCreating main scatterplot: Distance vs. Geographic Size...\n")
 
 # Identify outliers (residuals from simple regression)
-model_simple <- lm(state_capacity ~ distance_km, data = analysis_data)
+model_simple <- lm(land_area_km2 ~ distance_km, data = analysis_data)
 analysis_data <- analysis_data %>%
   mutate(
     residual = residuals(model_simple),
@@ -33,7 +33,7 @@ analysis_data <- analysis_data %>%
   )
 
 # Create main plot
-p_main <- ggplot(analysis_data, aes(x = distance_km, y = state_capacity)) +
+p_main <- ggplot(analysis_data, aes(x = distance_km, y = land_area_km2)) +
   geom_point(aes(size = population / 1e6), alpha = 0.6, color = "#2E86AB") +
   geom_smooth(method = "lm", se = TRUE, color = "#A23B72", fill = "#A23B72", alpha = 0.2) +
   geom_text_repel(
@@ -48,12 +48,13 @@ p_main <- ggplot(analysis_data, aes(x = distance_km, y = state_capacity)) +
     breaks = c(10, 50, 100, 200)
   ) +
   scale_x_continuous(labels = comma_format()) +
+  scale_y_continuous(labels = comma_format()) +
   labs(
-    title = "The Geopolitical Roche Limit: Distance and State Capacity in Latin America",
-    subtitle = "Countries farther from Washington DC show higher state consolidation",
+    title = "Distance and Geographic Size in Latin America",
+    subtitle = "Relationship between distance from Washington DC and country land area",
     x = "Distance from Washington DC (km)",
-    y = "State Capacity (V-Dem Index)",
-    caption = "Note: Point size represents population. Outliers labeled.\nSource: V-Dem, World Bank"
+    y = "Land Area (sq. km)",
+    caption = "Note: Point size represents population. Outliers labeled.\nSource: World Bank"
   ) +
   theme_minimal(base_size = 12) +
   theme(
@@ -63,7 +64,7 @@ p_main <- ggplot(analysis_data, aes(x = distance_km, y = state_capacity)) +
     panel.grid.minor = element_blank()
   )
 
-ggsave("output/figures/distance_state_capacity.png",
+ggsave("output/figures/distance_geographic_size.png",
        p_main, width = 10, height = 7, dpi = 300)
 
 # =============================================================================
@@ -74,18 +75,18 @@ cat("Creating partial regression plot (controlling for GDP)...\n")
 
 # Run full model
 model_full <- lm(
-  state_capacity ~ distance_1000km + log_gdp_pc + log_population + years_independent,
+  log_land_area ~ distance_1000km + log_gdp_pc + log_population + years_independent,
   data = analysis_data
 )
 
 # Get partial residuals for distance
 analysis_data <- analysis_data %>%
   mutate(
-    state_capacity_resid = residuals(lm(state_capacity ~ log_gdp_pc + log_population + years_independent, data = analysis_data)),
+    land_area_resid = residuals(lm(log_land_area ~ log_gdp_pc + log_population + years_independent, data = analysis_data)),
     distance_resid = residuals(lm(distance_1000km ~ log_gdp_pc + log_population + years_independent, data = analysis_data))
   )
 
-p_partial <- ggplot(analysis_data, aes(x = distance_resid, y = state_capacity_resid)) +
+p_partial <- ggplot(analysis_data, aes(x = distance_resid, y = land_area_resid)) +
   geom_point(alpha = 0.6, size = 3, color = "#2E86AB") +
   geom_smooth(method = "lm", se = TRUE, color = "#A23B72", fill = "#A23B72", alpha = 0.2) +
   geom_text_repel(
@@ -97,8 +98,8 @@ p_partial <- ggplot(analysis_data, aes(x = distance_resid, y = state_capacity_re
     title = "Partial Regression: Distance Effect After Controlling for Development",
     subtitle = "Residual plot showing distance effect net of GDP, population, and independence",
     x = "Distance (residual, in 1000s of km)",
-    y = "State Capacity (residual)",
-    caption = "Source: V-Dem, World Bank"
+    y = "Log Land Area (residual)",
+    caption = "Source: World Bank"
   ) +
   theme_minimal(base_size = 11) +
   theme(
@@ -116,7 +117,7 @@ ggsave("output/figures/partial_regression_plot.png",
 cat("Creating map visualization...\n")
 
 p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
-  geom_point(aes(size = state_capacity, color = distance_km), alpha = 0.8) +
+  geom_point(aes(size = land_area_km2 / 1000, color = distance_km), alpha = 0.8) +
   scale_color_gradient2(
     low = "#A23B72",
     mid = "#F18F01",
@@ -125,7 +126,7 @@ p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
     name = "Distance\nfrom DC (km)"
   ) +
   scale_size_continuous(
-    name = "State\nCapacity",
+    name = "Land Area\n(1000 sq. km)",
     range = c(3, 12)
   ) +
   geom_text_repel(
@@ -135,11 +136,11 @@ p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
     segment.size = 0.2
   ) +
   labs(
-    title = "Geographic Distribution of State Capacity in Latin America",
-    subtitle = "Color = distance from US; Size = state capacity level",
+    title = "Geographic Distribution of Country Size in Latin America",
+    subtitle = "Color = distance from US; Size = land area",
     x = "Longitude",
     y = "Latitude",
-    caption = "Source: V-Dem"
+    caption = "Source: World Bank"
   ) +
   theme_minimal(base_size = 11) +
   theme(
@@ -160,7 +161,7 @@ cat("Creating distribution plots...\n")
 dist_data <- analysis_data %>%
   select(
     `Distance (km)` = distance_km,
-    `State Capacity` = state_capacity,
+    `Land Area (sq. km)` = land_area_km2,
     `GDP per capita` = gdp_pc,
     `Population` = population,
     `Years Independent` = years_independent
@@ -237,7 +238,7 @@ ggsave("output/figures/coefficient_plot.png",
 
 cat("\n=== Visualization complete ===\n")
 cat("Figures saved to output/figures/:\n")
-cat("1. distance_state_capacity.png - Main scatterplot\n")
+cat("1. distance_geographic_size.png - Main scatterplot\n")
 cat("2. partial_regression_plot.png - Controlled relationship\n")
 cat("3. geographic_map.png - Spatial distribution\n")
 cat("4. variable_distributions.png - Data distributions\n")

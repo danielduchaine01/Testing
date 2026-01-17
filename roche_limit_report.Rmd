@@ -1,0 +1,379 @@
+---
+title: "Testing the Geopolitical Roche Limit"
+subtitle: "Distance from the United States and State Capacity in Latin America"
+author: "Research Project"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+    code_folding: hide
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 7,
+  dpi = 300
+)
+
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+# Executive Summary
+
+This project tests a novel theoretical framework: the **geopolitical Roche limit**. Just as Saturn's tidal forces prevent its rings from coalescing into moons, great powers may exert "tidal forces" on nearby states that inhibit political consolidation.
+
+**Core Hypothesis (H3):** States closer to the United States will exhibit lower state capacity than states farther away, controlling for economic development and other factors.
+
+**Key Finding:** [The analysis will reveal whether distance from the US predicts state capacity after controlling for GDP per capita, population, and years of independence]
+
+---
+
+# 1. Introduction
+
+## Theoretical Framework
+
+The Roche limit in astronomy refers to the distance within which a celestial body, held together only by its own gravity, will disintegrate due to tidal forces from a larger body. This project proposes an analogous framework for international relations:
+
+> **States located within the "sphere of influence" of a great power experience fragmentation pressures that prevent full political consolidation, analogous to how tidal forces prevent Saturn's rings from forming moons.**
+
+## Research Question
+
+Does proximity to the United States predict lower state capacity in Latin American countries, even after controlling for economic development?
+
+## Predictions
+
+If the framework has merit:
+
+1. **Distance should have a POSITIVE coefficient**: Countries farther from Washington DC will have higher state capacity
+2. **The effect should persist after controls**: The relationship should hold after accounting for GDP per capita, population, and years of independence
+3. **Statistical significance**: The effect should be distinguishable from random variation
+
+---
+
+# 2. Research Design
+
+## Sample
+
+**Unit of Analysis:** Latin American countries (N ≈ 20)
+
+Countries included: Mexico, Central America, Caribbean nations (population > 500k), and all South American states.
+
+## Variables
+
+### Dependent Variable
+
+- **State Capacity**: V-Dem "executive capacity" index (`v2x_execap`)
+  - Ranges from 0 (low capacity) to 1 (high capacity)
+  - Measures the extent to which the executive branch can implement policies
+  - Alternative measure: World Bank Government Effectiveness index
+
+### Key Independent Variable
+
+- **Distance**: Great-circle distance from country capital to Washington, D.C. (km)
+  - Calculated using the `geosphere` package's Haversine formula
+
+### Control Variables
+
+- **GDP per capita**: Log of GDP per capita (constant 2015 USD)
+- **Population**: Log of population
+- **Years Independent**: Years since independence from colonial power
+
+## Model Specification
+
+$$
+\text{State Capacity}_i = \beta_0 + \beta_1 \text{Distance}_i + \beta_2 \log(\text{GDP}_i) + \beta_3 \log(\text{Pop}_i) + \beta_4 \text{Years Independent}_i + \epsilon_i
+$$
+
+**Hypothesis test:** $\beta_1 > 0$ and statistically significant
+
+---
+
+# 3. Data Sources
+
+```{r data-sources, echo=FALSE}
+data_sources <- tribble(
+  ~Variable, ~Source, ~Indicator,
+  "State Capacity", "V-Dem v13", "v2x_execap (Executive Capacity Index)",
+  "GDP per capita", "World Bank WDI", "NY.GDP.PCAP.KD",
+  "Population", "World Bank WDI", "SP.POP.TOTL",
+  "Government Effectiveness", "World Bank WGI", "GE.EST",
+  "Distance", "Calculated", "Haversine formula (geosphere package)",
+  "Years Independent", "Manual coding", "Historical records"
+)
+
+kable(data_sources, caption = "Data Sources and Indicators") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+**Time Period:** Data averaged over 2018-2022 to reduce year-to-year volatility
+
+---
+
+# 4. Descriptive Statistics
+
+```{r load-data}
+# Load processed data
+analysis_data <- read_csv("data/processed/analysis_data.csv", show_col_types = FALSE)
+```
+
+## Sample Characteristics
+
+```{r sample-size}
+cat("Total observations:", nrow(analysis_data), "\n")
+cat("Countries included:", paste(head(sort(analysis_data$country_name), 10), collapse = ", "), "...\n")
+```
+
+## Summary Statistics
+
+```{r desc-stats}
+desc_stats <- read_csv("output/tables/descriptive_statistics.csv", show_col_types = FALSE)
+
+kable(desc_stats, digits = 2,
+      caption = "Summary Statistics for Key Variables") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+## Correlation Matrix
+
+```{r correlation}
+cor_matrix <- read.csv("output/tables/correlation_matrix.csv", row.names = 1)
+
+kable(cor_matrix, digits = 3,
+      caption = "Bivariate Correlations Between Variables") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+**Key Observations:**
+
+- Distance and state capacity correlation: `r round(cor_matrix["Distance..km.", "State.Capacity"], 3)`
+- GDP and state capacity correlation: `r round(cor_matrix["GDP.per.capita", "State.Capacity"], 3)`
+
+---
+
+# 5. Main Results
+
+## Primary Visualization
+
+```{r main-plot, fig.cap="Main result: Relationship between distance from Washington DC and state capacity"}
+knitr::include_graphics("output/figures/distance_state_capacity.png")
+```
+
+## Regression Analysis
+
+```{r regression-results}
+# Load regression results
+reg_results <- read_csv("output/tables/regression_results.csv", show_col_types = FALSE)
+model_fit <- read_csv("output/tables/model_fit_statistics.csv", show_col_types = FALSE)
+
+# Display full model results
+full_model <- reg_results %>%
+  filter(model == "Model 2: Full Model") %>%
+  select(Variable = variable, Estimate = estimate, `Std. Error` = std_error,
+         `t-value` = t_value, `p-value` = p_value, Sig. = significance)
+
+kable(full_model, digits = 4,
+      caption = "Main Regression Model: Predictors of State Capacity") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  footnote(general = "Significance codes: *** p<0.001, ** p<0.01, * p<0.05, . p<0.10")
+```
+
+### Model Fit
+
+```{r model-fit}
+kable(model_fit, digits = 3,
+      caption = "Model Fit Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+## Coefficient Plot
+
+```{r coef-plot, fig.cap="Regression coefficients with 95% confidence intervals"}
+knitr::include_graphics("output/figures/coefficient_plot.png")
+```
+
+---
+
+# 6. Model Diagnostics
+
+## Multicollinearity Check
+
+```{r vif}
+vif_data <- read.csv("output/tables/vif_diagnostics.csv")
+
+kable(vif_data, digits = 2,
+      caption = "Variance Inflation Factors (VIF < 10 is acceptable)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+## Residual Plots
+
+Diagnostic plots are available in `output/figures/regression_diagnostics.pdf`
+
+**Assessment:** [Residual plots should show no systematic patterns, indicating the model assumptions are met]
+
+---
+
+# 7. Robustness Checks
+
+## Partial Regression Plot
+
+```{r partial-plot, fig.cap="Partial regression: Distance effect controlling for all covariates"}
+knitr::include_graphics("output/figures/partial_regression_plot.png")
+```
+
+This plot shows the relationship between distance and state capacity **after** removing the linear effects of GDP per capita, population, and years of independence.
+
+## Geographic Visualization
+
+```{r geo-map, fig.cap="Geographic distribution of state capacity across Latin America"}
+knitr::include_graphics("output/figures/geographic_map.png")
+```
+
+---
+
+# 8. Interpretation
+
+```{r interpretation, results='asis'}
+# Extract key results
+full_model_data <- reg_results %>% filter(model == "Model 2: Full Model")
+distance_coef <- full_model_data %>% filter(variable == "distance_1000km")
+
+if (distance_coef$estimate > 0 & distance_coef$p_value < 0.05) {
+  cat("## ✓ Hypothesis SUPPORTED\n\n")
+  cat("**Key Finding:** Distance from the United States has a **significant positive effect** on state capacity in Latin America.\n\n")
+  cat("**Interpretation:** For every 1,000 km increase in distance from Washington DC, state capacity increases by approximately",
+      round(distance_coef$estimate, 3), "points on the V-Dem scale (p <", round(distance_coef$p_value, 3), ").\n\n")
+  cat("This relationship holds even after controlling for economic development (GDP per capita), population size, and years of independence.\n\n")
+  cat("**Implication:** The results are consistent with the geopolitical Roche limit framework. States in closer proximity to the US great power may face pressures that inhibit full political consolidation.\n\n")
+} else if (distance_coef$estimate > 0) {
+  cat("## ~ Hypothesis PARTIALLY SUPPORTED\n\n")
+  cat("**Key Finding:** Distance has a positive coefficient but does not reach conventional levels of statistical significance.\n\n")
+  cat("This suggests a potential relationship that requires further investigation with additional data or refined measures.\n\n")
+} else {
+  cat("## ✗ Hypothesis NOT SUPPORTED\n\n")
+  cat("**Key Finding:** Distance from the United States does NOT predict higher state capacity in this sample.\n\n")
+  cat("The geopolitical Roche limit framework, at least as operationalized here, does not find empirical support.\n\n")
+}
+```
+
+---
+
+# 9. Limitations
+
+This analysis has several important limitations:
+
+1. **Small Sample Size (N ≈ 20)**
+   - Limited statistical power to detect effects
+   - Vulnerable to influence from individual cases
+   - Restricts the number of control variables that can be included
+
+2. **Endogeneity Concerns**
+   - Reverse causality: US may intervene more in weak states
+   - Selection bias: Geographic proximity may correlate with unobserved factors
+   - This is a correlational study; causal identification requires additional designs
+
+3. **Omitted Variable Bias**
+   - Colonial legacy (Spanish vs. British vs. French)
+   - Geographic factors (terrain, natural resources)
+   - Ethnic/linguistic fractionalization
+   - Historical patterns of US intervention
+
+4. **Measurement Issues**
+   - "State capacity" is a contested concept with multiple operationalizations
+   - Distance is a crude proxy for geopolitical influence
+   - Cross-sectional design cannot capture temporal dynamics
+
+5. **Scope Conditions**
+   - Findings limited to Latin America in the contemporary era
+   - May not generalize to other regions or time periods
+   - US influence has varied substantially over the 20th century
+
+---
+
+# 10. Conclusions
+
+## Summary
+
+This project tested whether proximity to the United States predicts lower state capacity in Latin American countries, drawing on an analogy to the astronomical Roche limit.
+
+The analysis found [summarize whether distance effect was significant], suggesting that [interpret in terms of the theoretical framework].
+
+## Implications
+
+**For the Roche Limit Framework:**
+
+- [If supported: The framework shows promise and warrants further investigation]
+- [If not supported: The framework may need refinement or the mechanisms may not operate as theorized]
+
+**For Policy:**
+
+Understanding patterns of state fragmentation in great power spheres of influence has implications for:
+
+- Foreign aid allocation
+- Democracy promotion strategies
+- Regional integration efforts
+
+## Future Research
+
+This proof-of-concept study opens several avenues for further investigation:
+
+1. **Causal Identification**: Use instrumental variables, natural experiments, or historical discontinuities to address endogeneity
+
+2. **Mechanisms**: Test whether US intervention, economic dependence, or other pathways mediate the distance-capacity relationship
+
+3. **Temporal Dynamics**: Panel analysis examining how the relationship has changed as US power projection capacity evolved
+
+4. **Comparative Analysis**: Test the framework in other great power spheres (Soviet periphery, Chinese periphery)
+
+5. **Refined Measures**: Operationalize "density" (intensity of great power activity) rather than just distance
+
+---
+
+# Appendix: Replication
+
+## Software Environment
+
+```{r session-info}
+sessionInfo()
+```
+
+## Replication Instructions
+
+To replicate this analysis:
+
+1. Install required R packages (see `README.md`)
+2. Run scripts in order:
+   - `scripts/01_collect_data.R`
+   - `scripts/02_clean_merge.R`
+   - `scripts/03_analysis.R`
+   - `scripts/04_visualize.R`
+3. Knit this document: `rmarkdown::render("roche_limit_report.Rmd")`
+
+All data and code are available in this repository.
+
+---
+
+# References
+
+**Data Sources:**
+
+- V-Dem Institute. (2023). *Varieties of Democracy (V-Dem) Project*. https://v-dem.net
+- World Bank. (2023). *World Development Indicators*. https://data.worldbank.org
+- World Bank. (2023). *Worldwide Governance Indicators*. https://info.worldbank.org/governance/wgi
+
+**Theoretical Background:**
+
+- [Insert relevant citations for geopolitical theory, state capacity literature, etc.]
+
+---
+
+*Report generated: `r Sys.Date()`*

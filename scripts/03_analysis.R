@@ -2,7 +2,7 @@
 # Script 03: Statistical Analysis
 # Project: Distance and National Capability in Latin America
 # Description: Descriptive statistics, correlations, and regression analysis
-#              using CINC (Composite Index of National Capability) as mass
+#              using CINC as mass, land area as volume, and density = mass/volume
 # =============================================================================
 
 library(tidyverse)
@@ -29,6 +29,8 @@ desc_stats <- analysis_data %>%
   select(
     distance_km,
     cinc_pct,
+    land_area_km2,
+    density_scaled,
     gdp_pc,
     population,
     years_independent
@@ -60,6 +62,8 @@ cor_vars <- analysis_data %>%
   select(
     `Distance (km)` = distance_km,
     `CINC (%)` = cinc_pct,
+    `Land Area (km2)` = land_area_km2,
+    `Density (CINC/area)` = density_scaled,
     `GDP per capita` = gdp_pc,
     `Population` = population,
     `Years Independent` = years_independent
@@ -149,6 +153,34 @@ model_raw <- lm(
 summary(model_raw)
 
 # =============================================================================
+# 6b. Density Models (Roche Equation: Density = Mass / Volume)
+# =============================================================================
+
+cat("\n=== DENSITY MODELS (ROCHE EQUATION) ===\n")
+cat("Density = CINC / Land Area (national capability per unit of geographic size)\n\n")
+
+# Model 5: Distance predicting density (full controls)
+cat("\n--- Model 5: Distance -> Log Density (Full Controls) ---\n")
+model_density <- lm(
+  log_density ~ distance_1000km + log_gdp_pc + log_population + years_independent,
+  data = analysis_data
+)
+summary(model_density)
+
+# Model 6: Distance predicting density (bivariate)
+cat("\n--- Model 6: Distance -> Log Density (Bivariate) ---\n")
+model_density_biv <- lm(log_density ~ distance_1000km, data = analysis_data)
+summary(model_density_biv)
+
+# Model 7: Distance predicting land area (to compare mass vs volume vs density)
+cat("\n--- Model 7: Distance -> Log Land Area (Full Controls) ---\n")
+model_land_area <- lm(
+  log_land_area ~ distance_1000km + log_gdp_pc + log_population + years_independent,
+  data = analysis_data
+)
+summary(model_land_area)
+
+# =============================================================================
 # 7. Extract and save regression tables
 # =============================================================================
 
@@ -176,32 +208,47 @@ extract_model_results <- function(model, model_name) {
 
 # Combine results from multiple models
 model_results <- bind_rows(
-  extract_model_results(model_bivariate, "Model 1: Bivariate"),
-  extract_model_results(model_main, "Model 2: Full Model"),
-  extract_model_results(model_nonlinear, "Model 3: Non-linear"),
-  extract_model_results(model_raw, "Model 4: Raw Land Area")
+  extract_model_results(model_bivariate, "Model 1: Bivariate (CINC)"),
+  extract_model_results(model_main, "Model 2: Full Model (CINC)"),
+  extract_model_results(model_nonlinear, "Model 3: Non-linear (CINC)"),
+  extract_model_results(model_raw, "Model 4: Raw CINC"),
+  extract_model_results(model_density, "Model 5: Full Model (Density)"),
+  extract_model_results(model_density_biv, "Model 6: Bivariate (Density)"),
+  extract_model_results(model_land_area, "Model 7: Full Model (Land Area)")
 )
 
 # Add model fit statistics
 model_fit <- tibble(
-  model = c("Model 1: Bivariate", "Model 2: Full Model", "Model 3: Non-linear", "Model 4: Raw CINC"),
+  model = c("Model 1: Bivariate (CINC)", "Model 2: Full Model (CINC)",
+            "Model 3: Non-linear (CINC)", "Model 4: Raw CINC",
+            "Model 5: Full Model (Density)", "Model 6: Bivariate (Density)",
+            "Model 7: Full Model (Land Area)"),
   r_squared = c(
     summary(model_bivariate)$r.squared,
     summary(model_main)$r.squared,
     summary(model_nonlinear)$r.squared,
-    summary(model_raw)$r.squared
+    summary(model_raw)$r.squared,
+    summary(model_density)$r.squared,
+    summary(model_density_biv)$r.squared,
+    summary(model_land_area)$r.squared
   ),
   adj_r_squared = c(
     summary(model_bivariate)$adj.r.squared,
     summary(model_main)$adj.r.squared,
     summary(model_nonlinear)$adj.r.squared,
-    summary(model_raw)$adj.r.squared
+    summary(model_raw)$adj.r.squared,
+    summary(model_density)$adj.r.squared,
+    summary(model_density_biv)$adj.r.squared,
+    summary(model_land_area)$adj.r.squared
   ),
   n_obs = c(
     nobs(model_bivariate),
     nobs(model_main),
     nobs(model_nonlinear),
-    nobs(model_raw)
+    nobs(model_raw),
+    nobs(model_density),
+    nobs(model_density_biv),
+    nobs(model_land_area)
   )
 )
 
@@ -247,6 +294,20 @@ if (main_coef < 0 & main_pval < 0.05) {
   cat("\n✗ HYPOTHESIS NOT SUPPORTED:\n")
   cat("  Distance has no significant effect on national capability.\n")
 }
+
+# Roche Equation components summary
+cat("\n=== ROCHE EQUATION COMPONENTS ===\n")
+cat("Mass = CINC; Volume = Land Area; Density = CINC / Land Area\n")
+
+density_coef <- coef(model_density)["distance_1000km"]
+density_pval <- summary(model_density)$coefficients["distance_1000km", "Pr(>|t|)"]
+land_coef <- coef(model_land_area)["distance_1000km"]
+land_pval <- summary(model_land_area)$coefficients["distance_1000km", "Pr(>|t|)"]
+
+cat("\nDistance effects on Roche components (full models with controls):\n")
+cat("- Mass (CINC):     coef =", round(main_coef, 4), " p =", format.pval(main_pval, digits = 3), "\n")
+cat("- Volume (Area):   coef =", round(land_coef, 4), " p =", format.pval(land_pval, digits = 3), "\n")
+cat("- Density (C/A):   coef =", round(density_coef, 4), " p =", format.pval(density_pval, digits = 3), "\n")
 
 cat("\n=== Analysis complete ===\n")
 cat("Results saved to output/tables/\n")

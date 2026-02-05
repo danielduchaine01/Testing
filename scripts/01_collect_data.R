@@ -163,12 +163,13 @@ cat("Loaded CINC data for", nrow(cinc_data), "countries\n")
 
 cat("Downloading World Bank control variables...\n")
 
-# Get GDP per capita and population (most recent 5 years for averaging)
+# Get GDP per capita, population, and land area (most recent 5 years for averaging)
 wdi_data <- WDI(
   country = latin_america_iso3,
   indicator = c(
     "NY.GDP.PCAP.KD",  # GDP per capita (constant 2015 USD)
-    "SP.POP.TOTL"      # Population
+    "SP.POP.TOTL",     # Population
+    "AG.LND.TOTL.K2"   # Land area (sq. km) - geographic size ("volume")
   ),
   start = 2018,
   end = 2022,
@@ -177,11 +178,12 @@ wdi_data <- WDI(
 
 # Average over recent years to reduce year-to-year volatility
 wdi_avg <- wdi_data %>%
-  filter(!is.na(NY.GDP.PCAP.KD), !is.na(SP.POP.TOTL)) %>%
+  filter(!is.na(NY.GDP.PCAP.KD), !is.na(SP.POP.TOTL), !is.na(AG.LND.TOTL.K2)) %>%
   group_by(iso3c) %>%
   summarize(
     gdp_pc = mean(NY.GDP.PCAP.KD, na.rm = TRUE),
     population = mean(SP.POP.TOTL, na.rm = TRUE),
+    land_area_km2 = mean(AG.LND.TOTL.K2, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   rename(country = iso3c)

@@ -2,13 +2,15 @@
 
 ## Project Overview
 
-This research project tests a hypothesis about U.S. influence and national capability: Does distance from the United States correlate with the national capability (mass) of Latin American countries?
+This research project tests a geopolitical analogy inspired by the Roche limit in astrophysics. Using 22 Latin American countries, we examine how **distance from the United States** relates to three properties:
 
-**Core Research Question:** Is there a correlation between distance from the United States and the CINC scores (Composite Index of National Capability) of Latin American countries?
+- **Mass** = CINC score (national capability from Correlates of War NMC 6.0)
+- **Volume** = Land area (geographic size in km² from World Bank)
+- **Density** = Mass / Volume = CINC / Land Area (capability per unit of geographic size)
 
-**Hypothesis:** Countries closer to the U.S. may have higher national capabilities due to greater U.S. economic influence, investment, and strategic importance.
+**Core Research Question:** How does distance from the United States relate to a country's mass (CINC), volume (land area), and density (CINC per land area)?
 
-**Operationalization of Mass:** We use CINC (Composite Index of National Capability) from the Correlates of War National Material Capabilities (NMC) dataset as our measure of "mass." CINC captures a country's share of total world capabilities across six dimensions:
+**Operationalization of Mass:** We use CINC (Composite Index of National Capability) from the Correlates of War National Material Capabilities (NMC) dataset. CINC captures a country's share of total world capabilities across six dimensions:
 - Military expenditure
 - Military personnel
 - Energy consumption
@@ -100,6 +102,8 @@ rmarkdown::render("roche_limit_report.Rmd")
 └── output/
     ├── figures/                   # Generated plots
     │   ├── distance_cinc.png
+    │   ├── distance_density.png
+    │   ├── roche_components_panel.png
     │   ├── partial_regression_plot.png
     │   ├── geographic_map.png
     │   ├── variable_distributions.png
@@ -127,7 +131,9 @@ rmarkdown::render("roche_limit_report.Rmd")
 
 | Variable | Measure | Source |
 |----------|---------|--------|
-| **CINC Score** (DV) | Composite Index of National Capability (share of world total) | COW NMC 6.0 |
+| **CINC Score** (DV - Mass) | Composite Index of National Capability (share of world total) | COW NMC 6.0 |
+| **Land Area** (DV - Volume) | Total land area in square kilometers | World Bank WDI |
+| **Density** (DV - Derived) | CINC / Land Area (capability per unit of geographic size) | Computed |
 | **Distance** (Key IV) | Great-circle distance from capital to Washington DC (km) | Calculated |
 | **GDP per capita** (Control) | Log of constant 2015 USD | World Bank WDI |
 | **Population** (Control) | Log of total population | World Bank WDI |
@@ -146,13 +152,15 @@ The **Composite Index of National Capability (CINC)** is a widely-used measure o
 
 CINC = Average of the six component shares (ranges from 0 to 1)
 
-### Model Specification
+### Model Specifications
 
 ```
-Log(CINC) = beta_0 + beta_1(Distance) + beta_2(log GDP pc) + beta_3(log Pop) + beta_4(Years Indep) + epsilon
+Mass:    Log(CINC)      = beta_0 + beta_1(Distance) + beta_2(log GDP pc) + beta_3(log Pop) + beta_4(Years Indep) + epsilon
+Volume:  Log(Land Area) = beta_0 + beta_1(Distance) + beta_2(log GDP pc) + beta_3(log Pop) + beta_4(Years Indep) + epsilon
+Density: Log(CINC/Area) = beta_0 + beta_1(Distance) + beta_2(log GDP pc) + beta_3(log Pop) + beta_4(Years Indep) + epsilon
 ```
 
-**Test:** Examine whether distance has a significant effect on national capability
+**Test:** Examine how distance relates to each Roche component independently
 
 ---
 
@@ -160,15 +168,10 @@ Log(CINC) = beta_0 + beta_1(Distance) + beta_2(log GDP pc) + beta_3(log Pop) + b
 
 Run the analysis to discover:
 
-1. Whether distance from the U.S. predicts national capability
-2. Whether this relationship holds after controlling for economic development
-3. Robustness of the finding across alternative specifications
-
-**Possible Results:**
-
-- **Negative coefficient on distance:** Countries closer to the US have higher CINC
-- **Positive coefficient on distance:** Countries farther from the US have higher CINC
-- **Non-significant coefficient:** No clear relationship
+1. Whether distance from the U.S. predicts national capability (mass)
+2. Whether distance predicts geographic size (volume)
+3. Whether distance predicts geopolitical density (mass/volume)
+4. Whether these relationships hold after controlling for economic development
 
 ---
 
@@ -185,6 +188,7 @@ Run the analysis to discover:
 **World Development Indicators (WDI):**
 - GDP per capita: `NY.GDP.PCAP.KD`
 - Population: `SP.POP.TOTL`
+- Land area: `AG.LND.TOTL.K2`
 - **Website:** https://data.worldbank.org
 
 ### Geographic Data
@@ -200,17 +204,18 @@ Run the analysis to discover:
 
 1. Defines Latin American sample (22 countries)
 2. Codes capital coordinates and calculates distances to Washington DC
-3. Downloads CINC scores from Correlates of War NMC dataset
-4. Downloads World Bank indicators (GDP, population)
+3. Loads CINC scores from Correlates of War NMC 6.0 dataset
+4. Downloads World Bank indicators (GDP, population, land area)
 5. Codes independence years
 6. Saves raw datasets
 
 ### Data Preparation (Script 02)
 
 1. Merges all data sources by ISO3 country codes
-2. Creates log-transformed variables (CINC, GDP, population)
-3. Handles missing data
-4. Produces analysis-ready datasets
+2. Creates log-transformed variables (CINC, land area, GDP, population)
+3. Computes density = CINC / land area (raw, log, and scaled versions)
+4. Handles missing data
+5. Produces analysis-ready datasets
 
 ### Statistical Analysis (Script 03)
 
@@ -221,6 +226,10 @@ Run the analysis to discover:
    - Bivariate model (distance only)
    - Non-linear specification (distance squared)
    - Raw CINC (no log transformation)
+5. **Roche Equation models:**
+   - Density models (distance -> log density, bivariate + full)
+   - Land area model (distance -> log land area, full controls)
+   - Comparison of mass, volume, and density coefficients
 
 ### Visualization (Script 04)
 
@@ -229,6 +238,8 @@ Run the analysis to discover:
 3. Geographic map: Spatial distribution
 4. Coefficient plot: Regression results with confidence intervals
 5. Distribution plots: Variable summaries
+6. Distance vs. density scatterplot: Roche equation visualization
+7. Roche components panel: Mass, volume, and density vs. distance side-by-side
 
 ### Report (R Markdown)
 
@@ -244,24 +255,23 @@ Comprehensive HTML report including:
 
 ## Interpretation Guide
 
-### If Distance Coefficient is Negative and Significant
+### Roche Equation Analogy
 
-Countries closer to the U.S. have higher national capabilities, suggesting:
-- U.S. economic influence boosts nearby economies
-- Strategic importance leads to greater investment
-- Geographic proximity facilitates trade and development
+In astrophysics, the Roche limit is the distance within which a satellite held together by its own gravity will be torn apart by tidal forces from a larger body. The formula depends on the densities of both bodies. In the geopolitical analogy:
 
-### If Distance Coefficient is Positive and Significant
+- **Mass (CINC):** A country's overall national capability
+- **Volume (Land Area):** A country's geographic size
+- **Density (CINC/Area):** Capability concentrated per unit of territory
 
-Countries farther from the U.S. have higher national capabilities, suggesting:
-- Resource-rich countries in South America drive the pattern
-- Historical development patterns unrelated to U.S. proximity
+### Interpreting the Three Models
 
-### If Distance Coefficient is Not Significant
+| Component | Negative distance coef | Positive distance coef |
+|-----------|----------------------|----------------------|
+| **Mass** | Closer countries have higher CINC | Farther countries have higher CINC |
+| **Volume** | Closer countries are geographically larger | Farther countries are geographically larger |
+| **Density** | Closer countries are more "dense" (concentrated capability) | Farther countries are more "dense" |
 
-No clear relationship between distance and national capability, suggesting:
-- Other factors (resources, institutions, history) dominate
-- U.S. influence is not systematically related to distance
+The density result is key for the Roche analogy: if density decreases with distance, countries closer to the U.S. are more "compact" in their capability, potentially making them harder to disrupt.
 
 ---
 

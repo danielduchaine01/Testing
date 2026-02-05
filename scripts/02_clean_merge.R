@@ -29,9 +29,9 @@ analysis_data <- capital_distances %>%
   select(country, capital, lat, lon, distance_km) %>%
   # Add independence years
   left_join(independence_years, by = "country") %>%
-  # Add CINC data (our main dependent variable)
+  # Add CINC data (mass = national capability)
   left_join(cinc_data, by = "country") %>%
-  # Add World Bank data (controls)
+  # Add World Bank data (controls + land area for volume)
   left_join(wdi_data, by = "country")
 
 cat("Merged", nrow(analysis_data), "observations\n")
@@ -45,11 +45,20 @@ analysis_data <- analysis_data %>%
     # Log transformations for skewed variables
     log_gdp_pc = log(gdp_pc),
     log_population = log(population),
-    # CINC is already a proportion (0-1), use log for analysis
+
+    # CINC = "Mass" (national capability)
     # Add small constant to avoid log(0) for very small CINC values
     log_cinc = log(cinc + 0.0001),
-    # Also create CINC in percentage terms for easier interpretation
     cinc_pct = cinc * 100,
+
+    # Land area = "Volume" (geographic size)
+    log_land_area = log(land_area_km2),
+
+    # Density = Mass / Volume = CINC / Land Area
+    density = cinc / land_area_km2,
+    log_density = log(cinc + 0.0001) - log(land_area_km2),
+    # Scaled: CINC percentage points per million km²
+    density_scaled = cinc_pct / (land_area_km2 / 1e6),
 
     # Distance in thousands of km for easier interpretation
     distance_1000km = distance_km / 1000,
@@ -80,12 +89,15 @@ if (nrow(missing_summary) > 0) {
 
 # Key variables for main analysis
 key_vars <- c("country", "country_name", "capital", "lat", "lon", "distance_km", "distance_1000km",
-              "cinc", "cinc_pct", "log_cinc", "gdp_pc", "log_gdp_pc",
+              "cinc", "cinc_pct", "log_cinc",
+              "land_area_km2", "log_land_area",
+              "density", "log_density", "density_scaled",
+              "gdp_pc", "log_gdp_pc",
               "population", "log_population", "years_independent")
 
 analysis_data_complete <- analysis_data %>%
   select(all_of(key_vars)) %>%
-  drop_na(cinc, gdp_pc, population, years_independent)
+  drop_na(cinc, land_area_km2, gdp_pc, population, years_independent)
 
 cat("\nComplete cases for main analysis:", nrow(analysis_data_complete), "countries\n")
 
@@ -108,7 +120,7 @@ cat("- analysis_data.csv:", nrow(analysis_data_complete), "observations\n")
 cat("\n=== Preview of analysis dataset ===\n")
 print(
   analysis_data_complete %>%
-    select(country_name, distance_km, cinc_pct, gdp_pc, years_independent) %>%
+    select(country_name, distance_km, cinc_pct, land_area_km2, density_scaled) %>%
     arrange(distance_km) %>%
     head(10)
 )

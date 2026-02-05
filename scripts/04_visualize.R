@@ -1,7 +1,7 @@
 # =============================================================================
 # Script 04: Visualization
 # Project: Distance and National Capability in Latin America
-# Description: Creates figures for the analysis using CINC scores
+# Description: Creates figures for CINC, land area, and density (Roche) analysis
 # =============================================================================
 
 library(tidyverse)
@@ -162,6 +162,8 @@ dist_data <- analysis_data %>%
   select(
     `Distance (km)` = distance_km,
     `CINC (% of world)` = cinc_pct,
+    `Land Area (km2)` = land_area_km2,
+    `Density (CINC/area)` = density_scaled,
     `GDP per capita` = gdp_pc,
     `Population` = population,
     `Years Independent` = years_independent
@@ -170,7 +172,7 @@ dist_data <- analysis_data %>%
 
 p_distributions <- ggplot(dist_data, aes(x = value)) +
   geom_histogram(fill = "#2E86AB", alpha = 0.7, bins = 15) +
-  facet_wrap(~variable, scales = "free", ncol = 2) +
+  facet_wrap(~variable, scales = "free", ncol = 3) +
   labs(
     title = "Distribution of Key Variables",
     x = NULL,
@@ -183,7 +185,7 @@ p_distributions <- ggplot(dist_data, aes(x = value)) +
   )
 
 ggsave("output/figures/variable_distributions.png",
-       p_distributions, width = 9, height = 7, dpi = 300)
+       p_distributions, width = 12, height = 9, dpi = 300)
 
 # =============================================================================
 # 6. Coefficient Plot (Model Comparison)
@@ -233,7 +235,90 @@ ggsave("output/figures/coefficient_plot.png",
        p_coef, width = 8, height = 5, dpi = 300)
 
 # =============================================================================
-# 7. Summary
+# 7. Distance vs. Density (Roche Equation Visualization)
+# =============================================================================
+
+cat("Creating Roche density scatterplot: Distance vs. Density...\n")
+
+p_density <- ggplot(analysis_data, aes(x = distance_km, y = density_scaled)) +
+  geom_point(aes(size = cinc_pct, color = land_area_km2 / 1e6), alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, color = "#A23B72", fill = "#A23B72", alpha = 0.2) +
+  geom_text_repel(
+    aes(label = country_name),
+    size = 2.5,
+    max.overlaps = 10
+  ) +
+  scale_size_continuous(
+    name = "CINC Score\n(% of world)",
+    range = c(2, 10)
+  ) +
+  scale_color_gradient(
+    low = "#F18F01",
+    high = "#2E86AB",
+    name = "Land Area\n(million km2)"
+  ) +
+  scale_x_continuous(labels = comma_format()) +
+  labs(
+    title = "Geopolitical Density: National Capability per Unit of Geographic Size",
+    subtitle = "Density = CINC / Land Area (Roche Equation: density = mass / volume)",
+    x = "Distance from Washington DC (km)",
+    y = "Density (CINC % per million km2)",
+    caption = "Note: Point size = CINC (mass); Color = land area (volume)\nSource: COW NMC 6.0, World Bank"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11, color = "gray40"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("output/figures/distance_density.png",
+       p_density, width = 10, height = 7, dpi = 300)
+
+# =============================================================================
+# 8. Roche Components Panel (Mass, Volume, Density vs Distance)
+# =============================================================================
+
+cat("Creating Roche components panel...\n")
+
+# Prepare panel data in long format
+roche_panel <- analysis_data %>%
+  select(
+    country_name, distance_km,
+    `Mass (log CINC)` = log_cinc,
+    `Volume (log Land Area)` = log_land_area,
+    `Density (log CINC/Area)` = log_density
+  ) %>%
+  pivot_longer(
+    cols = starts_with(c("Mass", "Volume", "Density")),
+    names_to = "component",
+    values_to = "value"
+  )
+
+p_roche_panel <- ggplot(roche_panel, aes(x = distance_km, y = value)) +
+  geom_point(alpha = 0.6, size = 2.5, color = "#2E86AB") +
+  geom_smooth(method = "lm", se = TRUE, color = "#A23B72", fill = "#A23B72", alpha = 0.2) +
+  facet_wrap(~component, scales = "free_y", ncol = 3) +
+  scale_x_continuous(labels = comma_format()) +
+  labs(
+    title = "Roche Equation Components vs. Distance from Washington DC",
+    subtitle = "Mass = CINC; Volume = Land Area; Density = CINC / Land Area",
+    x = "Distance from Washington DC (km)",
+    y = "Value (log scale)",
+    caption = "Source: COW NMC 6.0, World Bank"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("output/figures/roche_components_panel.png",
+       p_roche_panel, width = 14, height = 5, dpi = 300)
+
+# =============================================================================
+# 9. Summary
 # =============================================================================
 
 cat("\n=== Visualization complete ===\n")
@@ -243,4 +328,6 @@ cat("2. partial_regression_plot.png - Controlled relationship\n")
 cat("3. geographic_map.png - Spatial distribution\n")
 cat("4. variable_distributions.png - Data distributions\n")
 cat("5. coefficient_plot.png - Regression results visualization\n")
-cat("6. regression_diagnostics.pdf - Model diagnostics (from 03_analysis.R)\n")
+cat("6. distance_density.png - Distance vs Density (Roche)\n")
+cat("7. roche_components_panel.png - Mass/Volume/Density comparison\n")
+cat("8. regression_diagnostics.pdf - Model diagnostics (from 03_analysis.R)\n")

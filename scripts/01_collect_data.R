@@ -21,6 +21,7 @@ cat("Starting data collection...\n")
 # =============================================================================
 
 latin_america <- c(
+  "United States",  # Reference country (distance = 0)
   "Argentina", "Bolivia", "Brazil", "Chile", "Colombia",
   "Costa Rica", "Cuba", "Dominican Republic", "Ecuador",
   "El Salvador", "Guatemala", "Haiti", "Honduras",
@@ -30,7 +31,7 @@ latin_america <- c(
 
 # Convert to ISO3 codes for consistency
 latin_america_iso3 <- countrycode(latin_america, "country.name", "iso3c")
-cat("Sample includes", length(latin_america_iso3), "Latin American countries\n")
+cat("Sample includes", length(latin_america_iso3), "countries (incl. US as reference)\n")
 
 # =============================================================================
 # 2. Capital coordinates and distance to Washington DC
@@ -39,6 +40,7 @@ cat("Sample includes", length(latin_america_iso3), "Latin American countries\n")
 # Capital city coordinates (latitude, longitude)
 capital_coords <- tribble(
   ~country,              ~capital,           ~lat,      ~lon,
+  "USA",                "Washington DC",     38.9072,  -77.0369,
   "ARG",                "Buenos Aires",     -34.6037,  -58.3816,
   "BOL",                "La Paz",           -16.5000,  -68.1500,
   "BRA",                "Brasília",         -15.7939,  -47.8828,
@@ -85,6 +87,7 @@ cat("Calculated distances to Washington DC for", nrow(capital_coords), "countrie
 
 independence_years <- tribble(
   ~country,  ~independence_year,
+  "USA",     1776,
   "ARG",     1816,
   "BOL",     1825,
   "BRA",     1822,
@@ -131,6 +134,7 @@ cat("Loading CINC scores from Correlates of War NMC 6.0 dataset...\n")
 
 cinc_data <- tribble(
   ~country, ~cinc,
+  "USA",    0.14197,   # United States
   "ARG",    0.00809,   # Argentina
   "BOL",    0.00109,   # Bolivia
   "BRA",    0.02652,   # Brazil

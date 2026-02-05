@@ -1,7 +1,8 @@
 # =============================================================================
 # Script 03: Statistical Analysis
-# Project: Distance and Geographic Size in Latin America
+# Project: Distance and National Capability in Latin America
 # Description: Descriptive statistics, correlations, and regression analysis
+#              using CINC (Composite Index of National Capability) as mass
 # =============================================================================
 
 library(tidyverse)
@@ -27,7 +28,7 @@ cat("\n=== DESCRIPTIVE STATISTICS ===\n")
 desc_stats <- analysis_data %>%
   select(
     distance_km,
-    land_area_km2,
+    cinc_pct,
     gdp_pc,
     population,
     years_independent
@@ -58,7 +59,7 @@ cat("\n=== CORRELATION MATRIX ===\n")
 cor_vars <- analysis_data %>%
   select(
     `Distance (km)` = distance_km,
-    `Land Area (km²)` = land_area_km2,
+    `CINC (%)` = cinc_pct,
     `GDP per capita` = gdp_pc,
     `Population` = population,
     `Years Independent` = years_independent
@@ -75,14 +76,15 @@ write.csv(cor_matrix, "output/tables/correlation_matrix.csv")
 # =============================================================================
 
 cat("\n=== MAIN REGRESSION MODEL ===\n")
-cat("DV: Land Area (log-transformed)\n")
-cat("Hypothesis: Distance should have a POSITIVE coefficient\n\n")
+cat("DV: CINC Score (log-transformed)\n")
+cat("Hypothesis: Distance should have a NEGATIVE coefficient\n")
+cat("(Countries closer to the US may have higher CINC due to US influence/investment)\n\n")
 
 # Model specification:
-# log(land_area) ~ distance + log(gdp_pc) + log(population) + years_independent
+# log(cinc) ~ distance + log(gdp_pc) + log(population) + years_independent
 
 model_main <- lm(
-  log_land_area ~ distance_1000km + log_gdp_pc + log_population + years_independent,
+  log_cinc ~ distance_1000km + log_gdp_pc + log_population + years_independent,
   data = analysis_data
 )
 
@@ -123,7 +125,7 @@ cat("\n=== ROBUSTNESS CHECKS ===\n")
 
 # Model 2: Bivariate (distance only)
 cat("\n--- Model 2: Bivariate (Distance only) ---\n")
-model_bivariate <- lm(log_land_area ~ distance_1000km, data = analysis_data)
+model_bivariate <- lm(log_cinc ~ distance_1000km, data = analysis_data)
 summary(model_bivariate)
 
 # Model 3: Squared distance term (non-linear relationship?)
@@ -132,16 +134,16 @@ analysis_data <- analysis_data %>%
   mutate(distance_1000km_sq = distance_1000km^2)
 
 model_nonlinear <- lm(
-  log_land_area ~ distance_1000km + distance_1000km_sq +
+  log_cinc ~ distance_1000km + distance_1000km_sq +
     log_gdp_pc + log_population + years_independent,
   data = analysis_data
 )
 summary(model_nonlinear)
 
-# Model 4: Without log transformation (raw land area)
-cat("\n--- Model 4: Raw land area (no log transformation) ---\n")
+# Model 4: Without log transformation (raw CINC percentage)
+cat("\n--- Model 4: Raw CINC percentage (no log transformation) ---\n")
 model_raw <- lm(
-  land_area_km2 ~ distance_1000km + log_gdp_pc + log_population + years_independent,
+  cinc_pct ~ distance_1000km + log_gdp_pc + log_population + years_independent,
   data = analysis_data
 )
 summary(model_raw)
@@ -182,7 +184,7 @@ model_results <- bind_rows(
 
 # Add model fit statistics
 model_fit <- tibble(
-  model = c("Model 1: Bivariate", "Model 2: Full Model", "Model 3: Non-linear", "Model 4: Raw Land Area"),
+  model = c("Model 1: Bivariate", "Model 2: Full Model", "Model 3: Non-linear", "Model 4: Raw CINC"),
   r_squared = c(
     summary(model_bivariate)$r.squared,
     summary(model_main)$r.squared,
@@ -221,19 +223,29 @@ cat("- Distance coefficient:", round(main_coef, 4), "\n")
 cat("- P-value:", format.pval(main_pval, digits = 3), "\n")
 cat("- R-squared:", round(main_rsq, 3), "\n")
 
-if (main_coef > 0 & main_pval < 0.05) {
+cat("\nNote: CINC (Composite Index of National Capability) measures national power\n")
+cat("as the average of a country's share of world totals in:\n")
+cat("  - Military expenditure & personnel\n")
+cat("  - Energy consumption & iron/steel production\n")
+cat("  - Urban & total population\n")
+
+if (main_coef < 0 & main_pval < 0.05) {
   cat("\n✓ HYPOTHESIS SUPPORTED:\n")
-  cat("  Distance has a significant POSITIVE effect on land area.\n")
-  cat("  Countries farther from the US have larger geographic sizes.\n")
+  cat("  Distance has a significant NEGATIVE effect on CINC.\n")
+  cat("  Countries closer to the US have higher national capabilities.\n")
   cat("  Interpretation: For every 1,000 km increase in distance from DC,\n")
-  cat("  log(land area) increases by", round(main_coef, 3), "units.\n")
-  cat("  This represents approximately a", round((exp(main_coef) - 1) * 100, 1), "% increase in land area.\n")
-} else if (main_coef > 0) {
+  cat("  log(CINC) decreases by", round(abs(main_coef), 3), "units.\n")
+  cat("  This represents approximately a", round((1 - exp(main_coef)) * 100, 1), "% decrease in CINC.\n")
+} else if (main_coef < 0) {
   cat("\n~ HYPOTHESIS PARTIALLY SUPPORTED:\n")
-  cat("  Distance has a positive effect but is not statistically significant.\n")
+  cat("  Distance has a negative effect but is not statistically significant.\n")
+} else if (main_coef > 0 & main_pval < 0.05) {
+  cat("\n✗ HYPOTHESIS NOT SUPPORTED (opposite direction):\n")
+  cat("  Distance has a significant POSITIVE effect on CINC.\n")
+  cat("  Countries farther from the US actually have higher capabilities.\n")
 } else {
   cat("\n✗ HYPOTHESIS NOT SUPPORTED:\n")
-  cat("  Distance has a negative or null effect on geographic size.\n")
+  cat("  Distance has no significant effect on national capability.\n")
 }
 
 cat("\n=== Analysis complete ===\n")

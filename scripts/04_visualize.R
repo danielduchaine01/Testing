@@ -1,7 +1,7 @@
 # =============================================================================
 # Script 04: Visualization
-# Project: Distance and Geographic Size in Latin America
-# Description: Creates figures for the analysis
+# Project: Distance and National Capability in Latin America
+# Description: Creates figures for the analysis using CINC scores
 # =============================================================================
 
 library(tidyverse)
@@ -19,13 +19,13 @@ analysis_data <- read_csv("data/processed/analysis_data.csv", show_col_types = F
 cat("Loaded data:", nrow(analysis_data), "observations\n")
 
 # =============================================================================
-# 2. Main Figure: Distance vs. Geographic Size
+# 2. Main Figure: Distance vs. National Capability (CINC)
 # =============================================================================
 
-cat("\nCreating main scatterplot: Distance vs. Geographic Size...\n")
+cat("\nCreating main scatterplot: Distance vs. CINC...\n")
 
 # Identify outliers (residuals from simple regression)
-model_simple <- lm(land_area_km2 ~ distance_km, data = analysis_data)
+model_simple <- lm(cinc_pct ~ distance_km, data = analysis_data)
 analysis_data <- analysis_data %>%
   mutate(
     residual = residuals(model_simple),
@@ -33,7 +33,7 @@ analysis_data <- analysis_data %>%
   )
 
 # Create main plot
-p_main <- ggplot(analysis_data, aes(x = distance_km, y = land_area_km2)) +
+p_main <- ggplot(analysis_data, aes(x = distance_km, y = cinc_pct)) +
   geom_point(aes(size = population / 1e6), alpha = 0.6, color = "#2E86AB") +
   geom_smooth(method = "lm", se = TRUE, color = "#A23B72", fill = "#A23B72", alpha = 0.2) +
   geom_text_repel(
@@ -48,13 +48,13 @@ p_main <- ggplot(analysis_data, aes(x = distance_km, y = land_area_km2)) +
     breaks = c(10, 50, 100, 200)
   ) +
   scale_x_continuous(labels = comma_format()) +
-  scale_y_continuous(labels = comma_format()) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
   labs(
-    title = "Distance and Geographic Size in Latin America",
-    subtitle = "Relationship between distance from Washington DC and country land area",
+    title = "Distance and National Capability in Latin America",
+    subtitle = "Relationship between distance from Washington DC and CINC score",
     x = "Distance from Washington DC (km)",
-    y = "Land Area (sq. km)",
-    caption = "Note: Point size represents population. Outliers labeled.\nSource: World Bank"
+    y = "CINC Score (% of world capability)",
+    caption = "Note: Point size represents population. Outliers labeled.\nSource: Correlates of War NMC 6.0"
   ) +
   theme_minimal(base_size = 12) +
   theme(
@@ -64,7 +64,7 @@ p_main <- ggplot(analysis_data, aes(x = distance_km, y = land_area_km2)) +
     panel.grid.minor = element_blank()
   )
 
-ggsave("output/figures/distance_geographic_size.png",
+ggsave("output/figures/distance_cinc.png",
        p_main, width = 10, height = 7, dpi = 300)
 
 # =============================================================================
@@ -75,18 +75,18 @@ cat("Creating partial regression plot (controlling for GDP and population)...\n"
 
 # Run full model
 model_full <- lm(
-  log_land_area ~ distance_1000km + log_gdp_pc + log_population + years_independent,
+  log_cinc ~ distance_1000km + log_gdp_pc + log_population + years_independent,
   data = analysis_data
 )
 
 # Get partial residuals for distance
 analysis_data <- analysis_data %>%
   mutate(
-    land_area_resid = residuals(lm(log_land_area ~ log_gdp_pc + log_population + years_independent, data = analysis_data)),
+    cinc_resid = residuals(lm(log_cinc ~ log_gdp_pc + log_population + years_independent, data = analysis_data)),
     distance_resid = residuals(lm(distance_1000km ~ log_gdp_pc + log_population + years_independent, data = analysis_data))
   )
 
-p_partial <- ggplot(analysis_data, aes(x = distance_resid, y = land_area_resid)) +
+p_partial <- ggplot(analysis_data, aes(x = distance_resid, y = cinc_resid)) +
   geom_point(alpha = 0.6, size = 3, color = "#2E86AB") +
   geom_smooth(method = "lm", se = TRUE, color = "#A23B72", fill = "#A23B72", alpha = 0.2) +
   geom_text_repel(
@@ -98,8 +98,8 @@ p_partial <- ggplot(analysis_data, aes(x = distance_resid, y = land_area_resid))
     title = "Partial Regression: Distance Effect After Controlling for Development",
     subtitle = "Residual plot showing distance effect net of GDP, population, and independence",
     x = "Distance (residual, in 1000s of km)",
-    y = "Log Land Area (residual)",
-    caption = "Source: World Bank"
+    y = "Log CINC (residual)",
+    caption = "Source: Correlates of War NMC 6.0"
   ) +
   theme_minimal(base_size = 11) +
   theme(
@@ -117,7 +117,7 @@ ggsave("output/figures/partial_regression_plot.png",
 cat("Creating map visualization...\n")
 
 p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
-  geom_point(aes(size = land_area_km2 / 1000, color = distance_km), alpha = 0.8) +
+  geom_point(aes(size = cinc_pct, color = distance_km), alpha = 0.8) +
   scale_color_gradient2(
     low = "#A23B72",
     mid = "#F18F01",
@@ -126,7 +126,7 @@ p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
     name = "Distance\nfrom DC (km)"
   ) +
   scale_size_continuous(
-    name = "Land Area\n(1000 sq. km)",
+    name = "CINC Score\n(% of world)",
     range = c(3, 12)
   ) +
   geom_text_repel(
@@ -136,11 +136,11 @@ p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
     segment.size = 0.2
   ) +
   labs(
-    title = "Geographic Distribution of Country Size in Latin America",
-    subtitle = "Color = distance from US; Size = land area",
+    title = "Geographic Distribution of National Capability in Latin America",
+    subtitle = "Color = distance from US; Size = CINC score",
     x = "Longitude",
     y = "Latitude",
-    caption = "Source: World Bank"
+    caption = "Source: Correlates of War NMC 6.0"
   ) +
   theme_minimal(base_size = 11) +
   theme(
@@ -161,7 +161,7 @@ cat("Creating distribution plots...\n")
 dist_data <- analysis_data %>%
   select(
     `Distance (km)` = distance_km,
-    `Land Area (sq. km)` = land_area_km2,
+    `CINC (% of world)` = cinc_pct,
     `GDP per capita` = gdp_pc,
     `Population` = population,
     `Years Independent` = years_independent
@@ -217,7 +217,7 @@ p_coef <- ggplot(model_results, aes(x = estimate, y = reorder(variable, estimate
   ) +
   labs(
     title = "Regression Coefficients with 95% Confidence Intervals",
-    subtitle = "Predictors of log(land area) in Latin America",
+    subtitle = "Predictors of log(CINC) in Latin America",
     x = "Coefficient Estimate",
     y = NULL,
     caption = "Note: Colored points indicate statistically significant effects (p < 0.05)"
@@ -238,7 +238,7 @@ ggsave("output/figures/coefficient_plot.png",
 
 cat("\n=== Visualization complete ===\n")
 cat("Figures saved to output/figures/:\n")
-cat("1. distance_geographic_size.png - Main scatterplot\n")
+cat("1. distance_cinc.png - Main scatterplot (Distance vs CINC)\n")
 cat("2. partial_regression_plot.png - Controlled relationship\n")
 cat("3. geographic_map.png - Spatial distribution\n")
 cat("4. variable_distributions.png - Data distributions\n")

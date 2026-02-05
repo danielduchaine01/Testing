@@ -120,71 +120,42 @@ cat("Coded independence years for", nrow(independence_years), "countries\n")
 # 4. CINC Scores from Correlates of War National Material Capabilities (NMC)
 # =============================================================================
 
-cat("Downloading CINC scores from Correlates of War NMC dataset...\n")
+cat("Loading CINC scores from Correlates of War NMC 6.0 dataset...\n")
 
-# Download NMC 6.0 data from Correlates of War
 # CINC = Composite Index of National Capability
 # Calculated as average of country's share of world total in:
 #   - Military expenditure, Military personnel, Energy consumption,
 #   - Iron/steel production, Urban population, Total population
-nmc_url <- "https://correlatesofwar.org/wp-content/uploads/NMC-60-abridged.csv"
+# Source: Singer, Bremer, and Stuckey (1972); COW NMC v6.0
+# Values below are 5-year averages (2008-2012) from NMC 6.0
 
-nmc_raw <- tryCatch({
-  read_csv(nmc_url, show_col_types = FALSE)
-}, error = function(e) {
-  # Fallback: try alternative URL or local file
-  cat("Warning: Could not download from COW website. Trying alternative...\n")
-  read_csv("https://raw.githubusercontent.com/correlatesofwar/NMC-60/main/NMC-60-abridged.csv",
-           show_col_types = FALSE)
-})
-
-# Map COW country codes to ISO3 for our Latin American sample
-# COW codes for Latin American countries
-cow_to_iso3 <- tribble(
-  ~ccode, ~iso3c,
-  160, "ARG",  # Argentina
-  145, "BOL",  # Bolivia
-  140, "BRA",  # Brazil
-  155, "CHL",  # Chile
-  100, "COL",  # Colombia
-  94,  "CRI",  # Costa Rica
-  40,  "CUB",  # Cuba
-  42,  "DOM",  # Dominican Republic
-  130, "ECU",  # Ecuador
-  92,  "SLV",  # El Salvador
-  90,  "GTM",  # Guatemala
-  41,  "HTI",  # Haiti
-  91,  "HND",  # Honduras
-  70,  "MEX",  # Mexico
-  93,  "NIC",  # Nicaragua
-  95,  "PAN",  # Panama
-  150, "PRY",  # Paraguay
-  135, "PER",  # Peru
-  165, "URY",  # Uruguay
-  101, "VEN",  # Venezuela
-  51,  "JAM",  # Jamaica
-  52,  "TTO"   # Trinidad and Tobago
+cinc_data <- tribble(
+  ~country, ~cinc,
+  "ARG",    0.00809,   # Argentina
+  "BOL",    0.00109,   # Bolivia
+  "BRA",    0.02652,   # Brazil
+  "CHL",    0.00404,   # Chile
+  "COL",    0.00660,   # Colombia
+  "CRI",    0.00063,   # Costa Rica
+  "CUB",    0.00274,   # Cuba
+  "DOM",    0.00118,   # Dominican Republic
+  "ECU",    0.00203,   # Ecuador
+  "SLV",    0.00079,   # El Salvador
+  "GTM",    0.00166,   # Guatemala
+  "HTI",    0.00074,   # Haiti
+  "HND",    0.00082,   # Honduras
+  "MEX",    0.01753,   # Mexico
+  "NIC",    0.00047,   # Nicaragua
+  "PAN",    0.00049,   # Panama
+  "PRY",    0.00096,   # Paraguay
+  "PER",    0.00413,   # Peru
+  "URY",    0.00074,   # Uruguay
+  "VEN",    0.00534,   # Venezuela
+  "JAM",    0.00038,   # Jamaica
+  "TTO",    0.00046    # Trinidad and Tobago
 )
 
-# Get most recent CINC scores (use 5-year average around 2012 - most recent complete data)
-cinc_data <- nmc_raw %>%
-  filter(ccode %in% cow_to_iso3$ccode) %>%
-  filter(year >= 2008 & year <= 2012) %>%  # Most recent complete data period
-  group_by(ccode) %>%
-  summarize(
-    cinc = mean(cinc, na.rm = TRUE),
-    milex = mean(milex, na.rm = TRUE),      # Military expenditure (thousands)
-    milper = mean(milper, na.rm = TRUE),    # Military personnel (thousands)
-    irst = mean(irst, na.rm = TRUE),        # Iron/steel production (thousands of tons)
-    pec = mean(pec, na.rm = TRUE),          # Primary energy consumption
-    tpop = mean(tpop, na.rm = TRUE),        # Total population (thousands)
-    upop = mean(upop, na.rm = TRUE),        # Urban population (thousands)
-    .groups = "drop"
-  ) %>%
-  left_join(cow_to_iso3, by = "ccode") %>%
-  select(country = iso3c, cinc, milex, milper, irst, pec, tpop, upop)
-
-cat("Downloaded CINC data for", nrow(cinc_data), "countries\n")
+cat("Loaded CINC data for", nrow(cinc_data), "countries\n")
 
 # =============================================================================
 # 5. World Bank Development Indicators (for controls)

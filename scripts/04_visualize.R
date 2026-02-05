@@ -116,8 +116,16 @@ ggsave("output/figures/partial_regression_plot.png",
 
 cat("Creating map visualization...\n")
 
+# Washington DC reference point
+dc_point <- tibble(lon = -77.0369, lat = 38.9072, label = "Washington DC")
+
 p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
   geom_point(aes(size = cinc_pct, color = distance_km), alpha = 0.8) +
+  # Add Washington DC as a distinct reference point
+  geom_point(data = dc_point, aes(x = lon, y = lat),
+             shape = 18, size = 5, color = "black", inherit.aes = FALSE) +
+  annotate("text", x = dc_point$lon, y = dc_point$lat + 1.5,
+           label = "Washington DC", size = 3, fontface = "bold") +
   scale_color_gradient2(
     low = "#A23B72",
     mid = "#F18F01",
@@ -137,7 +145,7 @@ p_map <- ggplot(analysis_data, aes(x = lon, y = lat)) +
   ) +
   labs(
     title = "Geographic Distribution of National Capability in Latin America",
-    subtitle = "Color = distance from US; Size = CINC score",
+    subtitle = "Color = distance from US; Size = CINC score; Diamond = Washington DC",
     x = "Longitude",
     y = "Latitude",
     caption = "Source: Correlates of War NMC 6.0"

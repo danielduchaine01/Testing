@@ -1,7 +1,7 @@
 # =============================================================================
 # Script 01: Data Collection
-# Project: Distance and Geographic Size in Latin America
-# Description: Collects World Bank data on land area and development indicators,
+# Project: Distance and National Capability in Latin America
+# Description: Collects CINC scores from COW NMC dataset, World Bank indicators,
 #              calculates distances, and codes independence years
 # =============================================================================
 
@@ -117,18 +117,87 @@ independence_years <- independence_years %>%
 cat("Coded independence years for", nrow(independence_years), "countries\n")
 
 # =============================================================================
-# 4. World Bank Development Indicators
+# 4. CINC Scores from Correlates of War National Material Capabilities (NMC)
 # =============================================================================
 
-cat("Downloading World Bank data...\n")
+cat("Downloading CINC scores from Correlates of War NMC dataset...\n")
 
-# Get GDP per capita, population, and land area (most recent 5 years for averaging)
+# Download NMC 6.0 data from Correlates of War
+# CINC = Composite Index of National Capability
+# Calculated as average of country's share of world total in:
+#   - Military expenditure, Military personnel, Energy consumption,
+#   - Iron/steel production, Urban population, Total population
+nmc_url <- "https://correlatesofwar.org/wp-content/uploads/NMC-60-abridged.csv"
+
+nmc_raw <- tryCatch({
+  read_csv(nmc_url, show_col_types = FALSE)
+}, error = function(e) {
+  # Fallback: try alternative URL or local file
+  cat("Warning: Could not download from COW website. Trying alternative...\n")
+  read_csv("https://raw.githubusercontent.com/correlatesofwar/NMC-60/main/NMC-60-abridged.csv",
+           show_col_types = FALSE)
+})
+
+# Map COW country codes to ISO3 for our Latin American sample
+# COW codes for Latin American countries
+cow_to_iso3 <- tribble(
+  ~ccode, ~iso3c,
+  160, "ARG",  # Argentina
+  145, "BOL",  # Bolivia
+  140, "BRA",  # Brazil
+  155, "CHL",  # Chile
+  100, "COL",  # Colombia
+  94,  "CRI",  # Costa Rica
+  40,  "CUB",  # Cuba
+  42,  "DOM",  # Dominican Republic
+  130, "ECU",  # Ecuador
+  92,  "SLV",  # El Salvador
+  90,  "GTM",  # Guatemala
+  41,  "HTI",  # Haiti
+  91,  "HND",  # Honduras
+  70,  "MEX",  # Mexico
+  93,  "NIC",  # Nicaragua
+  95,  "PAN",  # Panama
+  150, "PRY",  # Paraguay
+  135, "PER",  # Peru
+  165, "URY",  # Uruguay
+  101, "VEN",  # Venezuela
+  51,  "JAM",  # Jamaica
+  52,  "TTO"   # Trinidad and Tobago
+)
+
+# Get most recent CINC scores (use 5-year average around 2012 - most recent complete data)
+cinc_data <- nmc_raw %>%
+  filter(ccode %in% cow_to_iso3$ccode) %>%
+  filter(year >= 2008 & year <= 2012) %>%  # Most recent complete data period
+  group_by(ccode) %>%
+  summarize(
+    cinc = mean(cinc, na.rm = TRUE),
+    milex = mean(milex, na.rm = TRUE),      # Military expenditure (thousands)
+    milper = mean(milper, na.rm = TRUE),    # Military personnel (thousands)
+    irst = mean(irst, na.rm = TRUE),        # Iron/steel production (thousands of tons)
+    pec = mean(pec, na.rm = TRUE),          # Primary energy consumption
+    tpop = mean(tpop, na.rm = TRUE),        # Total population (thousands)
+    upop = mean(upop, na.rm = TRUE),        # Urban population (thousands)
+    .groups = "drop"
+  ) %>%
+  left_join(cow_to_iso3, by = "ccode") %>%
+  select(country = iso3c, cinc, milex, milper, irst, pec, tpop, upop)
+
+cat("Downloaded CINC data for", nrow(cinc_data), "countries\n")
+
+# =============================================================================
+# 5. World Bank Development Indicators (for controls)
+# =============================================================================
+
+cat("Downloading World Bank control variables...\n")
+
+# Get GDP per capita and population (most recent 5 years for averaging)
 wdi_data <- WDI(
   country = latin_america_iso3,
   indicator = c(
     "NY.GDP.PCAP.KD",  # GDP per capita (constant 2015 USD)
-    "SP.POP.TOTL",     # Population
-    "AG.LND.TOTL.K2"   # Land area (sq. km) - Our dependent variable
+    "SP.POP.TOTL"      # Population
   ),
   start = 2018,
   end = 2022,
@@ -137,12 +206,11 @@ wdi_data <- WDI(
 
 # Average over recent years to reduce year-to-year volatility
 wdi_avg <- wdi_data %>%
-  filter(!is.na(NY.GDP.PCAP.KD), !is.na(SP.POP.TOTL), !is.na(AG.LND.TOTL.K2)) %>%
+  filter(!is.na(NY.GDP.PCAP.KD), !is.na(SP.POP.TOTL)) %>%
   group_by(iso3c) %>%
   summarize(
     gdp_pc = mean(NY.GDP.PCAP.KD, na.rm = TRUE),
     population = mean(SP.POP.TOTL, na.rm = TRUE),
-    land_area_km2 = mean(AG.LND.TOTL.K2, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   rename(country = iso3c)
@@ -150,16 +218,18 @@ wdi_avg <- wdi_data %>%
 cat("Downloaded World Bank data for", nrow(wdi_avg), "countries\n")
 
 # =============================================================================
-# 5. Save raw data files
+# 6. Save raw data files
 # =============================================================================
 
 # Save each dataset
 write_csv(capital_coords, "data/raw/capital_distances.csv")
 write_csv(independence_years, "data/raw/independence_years.csv")
+write_csv(cinc_data, "data/raw/cinc_data.csv")
 write_csv(wdi_avg, "data/raw/wdi_data.csv")
 
 cat("\n=== Data collection complete ===\n")
 cat("Raw data files saved to data/raw/\n")
 cat("- capital_distances.csv:", nrow(capital_coords), "countries\n")
 cat("- independence_years.csv:", nrow(independence_years), "countries\n")
+cat("- cinc_data.csv:", nrow(cinc_data), "countries\n")
 cat("- wdi_data.csv:", nrow(wdi_avg), "countries\n")
